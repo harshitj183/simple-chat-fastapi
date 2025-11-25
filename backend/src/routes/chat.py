@@ -263,7 +263,6 @@ async def update_message(
 @router.websocket('/ws')
 async def websocket_endpoint(
     response: Response,
-    user: Annotated[get_current_user, Depends()],
     websocket: WebSocket,
     username: Annotated[str, Query]
 ):
