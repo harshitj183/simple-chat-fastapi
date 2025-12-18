@@ -2,7 +2,7 @@ from typing import Annotated
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, WebSocket, WebSocketDisconnect, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, WebSocket, WebSocketDisconnect, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -30,7 +30,8 @@ from ..schemas.message import (
     UpdateMessageResponse
 )
 from ..schemas.user import (
-    TokenResponse,
+    AccessTokenResponse,
+    RefreshTokenResponse,
     UserRequest,
     UserResponse,
     ChangeUserPasswordRequest,
@@ -39,7 +40,7 @@ from ..schemas.user import (
 
 from ..core.redis_client import redis_connection
 
-from ..utils import create_access_token
+from ..utils import create_access_token, create_refresh_token, verify_token
 
 from ..dependencies import get_current_user
 
@@ -98,22 +99,45 @@ async def sign_up(
     return user_response
 
 
-@router.post('/token', response_model=TokenResponse, dependencies=[Depends(limiter)])
-async def login_for_access_token(
+@router.post('/token', response_model=AccessTokenResponse, dependencies=[Depends(limiter)])
+async def login_for_access_and_refresh_token(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)]
 ):
     '''
-    Authenticate user and return JWT access token.
+    Authenticate user and return JWT access and refresh token.
     '''
     secure_headers.set_headers(response)
 
     user = await authenticate_user(session, form_data.username, form_data.password)
     access_token = create_access_token({"sub": user.username})
-    token_response = TokenResponse(access_token=access_token, token_type="bearer")
+    refresh_token = create_refresh_token({"sub": user.username})
+    token_response = AccessTokenResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
     logger.info("User authenticated")
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="Lax"
+    )
+    return token_response
+
+
+@router.post('/refresh', response_model=RefreshTokenResponse, dependencies=[Depends(limiter)])
+async def refresh_access_token(
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie()] = None
+):
+    '''
+    Refresh access token and return it
+    '''
+    secure_headers.set_headers(response)
+
+    payload = verify_token(refresh_token)
+    token_response = RefreshTokenResponse(refresh_token=create_access_token({"sub": payload.get("sub")}))
     return token_response
 
 
