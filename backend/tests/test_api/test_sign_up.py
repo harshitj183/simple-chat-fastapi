@@ -2,7 +2,6 @@ import pytest
 import httpx
 
 
-@pytest.mark.skip(reason="no way of currently testing this")
 @pytest.mark.asyncio
 async def test_sign_up(async_client: httpx.AsyncClient):
     data = {

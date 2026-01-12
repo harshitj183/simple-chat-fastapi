@@ -48,20 +48,23 @@ async def test_lifespan(app: FastAPI, redis_conn):
     await FastAPILimiter.close()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def db():
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def cleanup_db():
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    yield 
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
+
+@pytest_asyncio.fixture()
+async def db():
     async with TestingAsyncSessionLocal() as session:
         try:
             yield session
         finally:
             await session.rollback()
             await session.close()
-
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture
