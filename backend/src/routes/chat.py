@@ -45,7 +45,7 @@ from ..utils import create_access_token, create_refresh_token, verify_token
 from ..dependencies import get_current_user
 
 
-CACHE_MESSAGES_PREFIX = "chat:messages"
+CACHE_MESSAGES_PREFIX = "chat:messages:"
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ async def get_messages(
     response: Response, 
     user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
-    last_id: Annotated[int | None, Query()] = None,
+    first_id: Annotated[int | None, Query()] = None,
     limit : Annotated[int, Query()] = 20
 ):
     '''
@@ -174,10 +174,13 @@ async def get_messages(
     '''
     secure_headers.set_headers(response)
 
-    if not last_id:
-        cache_key_messages = CACHE_MESSAGES_PREFIX + "0" + "-" + str(limit)
-    else:
-        cache_key_messages = CACHE_MESSAGES_PREFIX + str(last_id) + "-" + str(last_id + limit)
+    if not first_id:
+        cache_key_messages = CACHE_MESSAGES_PREFIX + "last_messages"
+    if first_id:
+        if first_id - 20 < 0:
+            cache_key_messages = CACHE_MESSAGES_PREFIX + "1-" + str(first_id-1)
+        else:
+            cache_key_messages = CACHE_MESSAGES_PREFIX + str(first_id-20) + "-" + str(first_id-1)
 
     cached_messages_json = await redis_connection.get(cache_key_messages)
 
@@ -188,11 +191,10 @@ async def get_messages(
         return MessageListResponse(**cached_payload)
 
     try:
-        messages = await get_paginated_messages(session, last_id, limit)
+        messages = await get_paginated_messages(session, first_id, limit)
         messages_response = MessageListResponse(
             messages=[message.to_pydantic() for message in messages]
         )
-
         serialized = (
             messages_response.model_dump_json() if hasattr(messages_response, 'model_dump_json')
             else json.dumps(jsonable_encoder(messages_response))
@@ -283,7 +285,29 @@ async def update_message(
     try:
         success = await update_message_from_db(session, message_request.id, message_request.content)
 
-        await redis_connection.flushdb()
+        keys = []
+        async for key in redis_connection.scan_iter("chat:messages:*-*"):
+            words = key.split(':')
+            range = words[-1].split('-')
+            keys.append((int(range[-2]), int(range[-1])))
+
+        flag = False
+        for key in keys:
+            if key[0] <= message_request.id and message_request.id <= key[1]:
+                flag = True
+                cache_key_messages = CACHE_MESSAGES_PREFIX + str(key[0]) + "-" + str(key[1])
+                break
+        if not flag:
+            cache_key_messages = CACHE_MESSAGES_PREFIX + "last_messages"
+
+        cached_messages_json = await redis_connection.get(cache_key_messages)
+        cached_payload = json.loads(cached_messages_json)
+        for message in cached_payload["messages"]:
+            if message["id"] == message_request.id:
+                message["content"] = message_request.content
+                break
+        serialized = json.dumps(cached_payload)
+        await redis_connection.set(cache_key_messages, serialized, ex=3600)
 
         logger.info("Message updated")
         return UpdateMessageResponse(success=success)

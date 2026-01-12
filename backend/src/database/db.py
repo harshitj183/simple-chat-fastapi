@@ -48,11 +48,11 @@ async def get_db():
             await session.close()
 
 
-async def get_paginated_messages(session: AsyncSession, last_id: int, limit: int):
+async def get_paginated_messages(session: AsyncSession, first_id: int, limit: int):
     stmt = select(Message).order_by(Message.id.desc()).limit(limit)
 
-    if last_id:
-        stmt = stmt.where(Message.id < last_id)
+    if first_id:
+        stmt = stmt.where(Message.id < first_id)
 
     result = await session.execute(stmt)
     messages = result.scalars().all()

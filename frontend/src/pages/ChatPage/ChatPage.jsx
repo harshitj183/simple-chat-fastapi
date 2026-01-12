@@ -108,11 +108,11 @@ export function Chat() {
 	const loadOlderMessages = async () => {
 		setLoading(true);
 		const firstMessage = messagesRef.current[1]; 
-		const lastId = firstMessage ? firstMessage.id : null;
+		const firstId = firstMessage ? firstMessage.id : null;
 	
 		try {
 			const params = new URLSearchParams();
-			if (lastId !== null) params.append('last_id', lastId);
+			if (firstId !== null) params.append('first_id', firstId);
 			params.append('limit', 20);
 
 			const response = await makeRequest(`messages?${params.toString()}`, {
