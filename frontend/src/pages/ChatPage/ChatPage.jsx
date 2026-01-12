@@ -15,6 +15,7 @@ import {parseTimestamp, shouldShowDateHeader} from '../../utils/dateUtils.js'
 
 export function Chat() {
 	const [messages, setMessages] = useState([]);
+	const prevMessagesRef = useRef([]);
 	const messagesRef = useRef(messages);
 	const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
@@ -88,12 +89,16 @@ export function Chat() {
 	}, [messages]);
 	
 	useEffect(() => {
-		const lastMessage = messages[messages.length - 1];
-			if (lastMessage && lastMessage.sender === username) {
+		const prevMessages = prevMessagesRef.current;
+    	const currentMessages = messages;
+		const lastMessage = currentMessages[currentMessages.length - 1];
+		if (currentMessages.length > prevMessages.length && lastMessage.sender === username) {
 			setTimeout(() => {
 				messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
 			}, 100);
 		}
+		
+		prevMessagesRef.current = messages;
 	}, [messages,  username]);
 
 	const handleScroll = useCallback(() => {
