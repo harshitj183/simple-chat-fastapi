@@ -1,7 +1,7 @@
 import pytest
 import httpx
-import jwt
-from datetime import datetime, timezone, timedelta
+
+from ..conftest import create_expired_token
 
 from src.schemas.config import settings
 
@@ -43,11 +43,6 @@ async def test_messages_with_invalid_token(async_client: httpx.AsyncClient):
 
     assert response.status_code == 401
 
-async def create_expired_token(data: dict, secret_key: str):
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) - timedelta(days=1)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, secret_key, algorithm=settings.ALGORITHM)
 
 @pytest.mark.order(after="test_messages_with_invalid_token")
 @pytest.mark.asyncio

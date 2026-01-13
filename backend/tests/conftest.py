@@ -6,6 +6,8 @@ from fastapi_limiter import FastAPILimiter
 from httpx import ASGITransport, AsyncClient
 from asgi_lifespan import LifespanManager
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+import jwt
+from datetime import datetime, timezone, timedelta
 
 from src.routes.chat import router, limiter
 
@@ -13,6 +15,8 @@ from src.database.db import get_db
 from src.database.models.base import Base
 
 from src.core.redis_client import get_redis_connection
+
+from src.schemas.config import settings
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -86,3 +90,9 @@ async def async_client(app: FastAPI) -> AsyncClient:
     async with LifespanManager(app) as manager:
         async with AsyncClient(transport=ASGITransport(app=manager.app), base_url="http://test") as client:
             yield client
+
+async def create_expired_token(data: dict, secret_key: str):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) - timedelta(days=1)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, secret_key, algorithm=settings.ALGORITHM)
