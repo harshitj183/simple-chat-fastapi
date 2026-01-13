@@ -14,7 +14,7 @@ from src.database.db import get_db
 from src.database.models.base import Base
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="session")
 async def redis_connection():
     mock_redis = AsyncMock()
     mock_redis.get = AsyncMock(return_value=None)
@@ -50,7 +50,7 @@ async def cleanup_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="session")
 async def db():
     async with TestingAsyncSessionLocal() as session:
         try:
@@ -60,7 +60,7 @@ async def db():
             await session.close()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def app(db, redis_connection) -> FastAPI:
     @asynccontextmanager
     async def test_lifespan(_: FastAPI):
@@ -81,7 +81,7 @@ async def app(db, redis_connection) -> FastAPI:
     return app
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def async_client(app: FastAPI) -> AsyncClient:
     async with LifespanManager(app) as manager:
         async with AsyncClient(transport=ASGITransport(app=manager.app), base_url="http://test") as client:
