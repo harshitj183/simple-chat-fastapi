@@ -4,7 +4,6 @@ import pytest_asyncio
 from fastapi import FastAPI
 from fastapi_limiter import FastAPILimiter
 from httpx import ASGITransport, AsyncClient
-from unittest.mock import AsyncMock
 from asgi_lifespan import LifespanManager
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -13,14 +12,14 @@ from src.routes.chat import router, limiter
 from src.database.db import get_db
 from src.database.models.base import Base
 
+from src.core.redis_client import get_redis_connection
+
 
 @pytest_asyncio.fixture(scope="session")
 async def redis_connection():
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(return_value=None)
-    mock_redis.set = AsyncMock(return_value=True)
-    mock_redis.delete = AsyncMock(return_value=1)
-    return mock_redis
+    import fakeredis
+    redis_connection = fakeredis.FakeAsyncRedis()
+    return redis_connection
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -77,6 +76,7 @@ async def app(db, redis_connection) -> FastAPI:
 
     app.dependency_overrides[limiter] = lambda: None
     app.dependency_overrides[get_db] = override_get_session
+    app.dependency_overrides[get_redis_connection] = lambda : redis_connection
 
     return app
 

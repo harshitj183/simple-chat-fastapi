@@ -9,7 +9,7 @@ from fastapi_limiter import FastAPILimiter
 
 from .routes.chat import router
 
-from .core.redis_client import redis_connection
+from .core.redis_client import get_redis_connection
 
 from .exceptions import (
     AuthenticationError,
@@ -25,7 +25,7 @@ loggerChat = logging.getLogger("src.chat")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info("Initializing rate limiter")
-    await FastAPILimiter.init(redis_connection)
+    await FastAPILimiter.init(get_redis_connection())
     yield
     logger.info("Closing rate limiter")
     await FastAPILimiter.close()

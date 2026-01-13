@@ -8,6 +8,7 @@ from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from secure import Secure
 from fastapi.encoders import jsonable_encoder
+from redis.asyncio.client import Redis
 
 from ..database.db import (
     authenticate_user,
@@ -38,7 +39,7 @@ from ..schemas.user import (
     ChangeUserPasswordResponse
 )
 
-from ..core.redis_client import redis_connection
+from ..core.redis_client import get_redis_connection
 
 from ..utils import create_access_token, create_refresh_token, verify_token
 
@@ -164,6 +165,7 @@ async def get_messages(
     response: Response, 
     user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
+    redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     first_id: Annotated[int | None, Query()] = None,
     limit : Annotated[int, Query()] = 20
 ):
@@ -213,8 +215,9 @@ async def get_messages(
 async def send_message(
     response: Response,
     user: Annotated[get_current_user, Depends()],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[CreateMessageRequest, Body],
-    session: Annotated[AsyncSession, Depends(get_db)]
 ):
     '''
     Create and send a new message to the chat.
@@ -246,8 +249,9 @@ async def send_message(
 async def delete_message(
     response: Response,
     user: Annotated[get_current_user, Depends()],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[DeleteMessageRequest, Body],
-    session: Annotated[AsyncSession, Depends(get_db)]
 ):
     '''
     Delete a specific message from the chat by its ID.
@@ -272,8 +276,9 @@ async def delete_message(
 async def update_message(
     response: Response,
     user: Annotated[get_current_user, Depends()],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[UpdateMessageRequest, Body],
-    session: Annotated[AsyncSession, Depends(get_db)]
 ):
     '''
     Update content field of a specific message from the chat by its ID.
