@@ -160,10 +160,9 @@ async def change_password(
     return ChangeUserPasswordResponse(success=success)
 
 
-@router.get('/messages', response_model=MessageListResponse, dependencies=[Depends(limiter)])
+@router.get('/messages', response_model=MessageListResponse, dependencies=[Depends(limiter), Depends(get_current_user)])
 async def get_messages(
     response: Response, 
-    user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
     redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     first_id: Annotated[int | None, Query()] = None,
@@ -211,10 +210,9 @@ async def get_messages(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post('/send-message', response_model=CreateMessageResponse, dependencies=[Depends(limiter)])
+@router.post('/send-message', response_model=CreateMessageResponse, dependencies=[Depends(limiter), Depends(get_current_user)])
 async def send_message(
     response: Response,
-    user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
     redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[CreateMessageRequest, Body],
@@ -245,10 +243,9 @@ async def send_message(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete('/delete-message', response_model=DeleteMessageResponse, dependencies=[Depends(limiter)])
+@router.delete('/delete-message', response_model=DeleteMessageResponse, dependencies=[Depends(limiter), Depends(get_current_user)])
 async def delete_message(
     response: Response,
-    user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
     redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[DeleteMessageRequest, Query()],
@@ -272,10 +269,9 @@ async def delete_message(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.patch('/update-message', response_model=UpdateMessageResponse, dependencies=[Depends(limiter)])
+@router.patch('/update-message', response_model=UpdateMessageResponse, dependencies=[Depends(limiter), Depends(get_current_user)])
 async def update_message(
     response: Response,
-    user: Annotated[get_current_user, Depends()],
     session: Annotated[AsyncSession, Depends(get_db)],
     redis_connection: Annotated[Redis, Depends(get_redis_connection)],
     message_request: Annotated[UpdateMessageRequest, Body],
