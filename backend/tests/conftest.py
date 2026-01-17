@@ -38,10 +38,11 @@ TestingAsyncSessionLocal = async_sessionmaker(
 
 
 @pytest_asyncio.fixture(scope="session")
-def redis_connection():
+async def redis_connection():
     import fakeredis
     redis_connection = fakeredis.FakeAsyncRedis()
-    return redis_connection
+    yield redis_connection
+    await redis_connection.aclose()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -51,6 +52,7 @@ async def cleanup_db():
     yield 
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await async_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="session")
